@@ -9,7 +9,7 @@
 # for additional reference on schema see:
 # https://github.com/mapbox/node-mbtiles/blob/master/lib/schema.sql
 
-import sqlite3, sys, logging, time, os, json, zlib, re
+import sqlite3, sys, logging, time, os, json, gzip, zlib, re
 
 logger = logging.getLogger(__name__)
 
