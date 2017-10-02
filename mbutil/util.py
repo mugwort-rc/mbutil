@@ -331,7 +331,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
         else:
             tile = os.path.join(tile_dir,'%s.%s' % (y, kwargs.get('format', 'png')))
         f = open(tile, 'wb')
-        f.write(t[3])
+        if kwargs.get('format', 'png') == 'pbf' and not kwargs.get('do_compression', False):
+            f.write(gzip.decompress(t[3]))
+        else:
+            f.write(t[3])
         f.close()
         done = done + 1
         if not silent:
