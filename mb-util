@@ -40,7 +40,7 @@ if __name__ == '__main__':
         
     parser.add_option('--image_format', dest='format',
         help='''The format of the image tiles, either png, jpg, webp or pbf''',
-        choices=['png', 'jpg', 'pbf', 'webp'],
+        choices=['png', 'jpg', 'pbf', 'mvt', 'webp'],
         default='png')
 
     parser.add_option('--grid_callback', dest='callback',
