@@ -11,6 +11,9 @@
 
 import sqlite3, sys, logging, time, os, json, zlib, re
 
+from .output import Output
+
+
 logger = logging.getLogger(__name__)
 
 def flip_y(zoom, y):
@@ -285,27 +288,23 @@ def mbtiles_metadata_to_disk(mbtiles_file, **kwargs):
     if not silent:
         logger.debug(json.dumps(metadata, indent=2))
 
-def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
+def mbtiles_to_disk(mbtiles_file, output_path, **kwargs):
     silent = kwargs.get('silent')
     if not silent:
         logger.debug("Exporting MBTiles to disk")
-        logger.debug("%s --> %s" % (mbtiles_file, directory_path))
+        logger.debug("%s --> %s" % (mbtiles_file, output_path))
     con = mbtiles_connect(mbtiles_file, silent)
-    os.mkdir("%s" % directory_path)
+    out = Output(output_path)
     metadata = dict(con.execute('select name, value from metadata;').fetchall())
-    json.dump(metadata, open(os.path.join(directory_path, 'metadata.json'), 'w'), indent=4)
+    json.dump(metadata, out.open('metadata.json', 'w'), indent=4)
     count = con.execute('select count(zoom_level) from tiles;').fetchone()[0]
     done = 0
-    base_path = directory_path
-    if not os.path.isdir(base_path):
-        os.makedirs(base_path)
 
     # if interactivity
     formatter = metadata.get('formatter')
     if formatter:
-        layer_json = os.path.join(base_path, 'layer.json')
         formatter_json = {"formatter":formatter}
-        open(layer_json, 'w').write(json.dumps(formatter_json))
+        out.open('layer.json', 'w').write(json.dumps(formatter_json))
 
     tiles = con.execute('select zoom_level, tile_column, tile_row, tile_data from tiles;')
     t = tiles.fetchone()
@@ -317,9 +316,9 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
             y = flip_y(z,y)
             if not silent:
                 logger.debug('flipping')
-            tile_dir = os.path.join(base_path, str(z), str(x))
+            tile_dir = os.path.join(str(z), str(x))
         elif kwargs.get('scheme') == 'wms':
-            tile_dir = os.path.join(base_path,
+            tile_dir = os.path.join(
                 "%02d" % (z),
                 "%03d" % (int(x) / 1000000),
                 "%03d" % ((int(x) / 1000) % 1000),
@@ -327,14 +326,13 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
                 "%03d" % (int(y) / 1000000),
                 "%03d" % ((int(y) / 1000) % 1000))
         else:
-            tile_dir = os.path.join(base_path, str(z), str(x))
-        if not os.path.isdir(tile_dir):
-            os.makedirs(tile_dir)
+            tile_dir = os.path.join(str(z), str(x))
+        out.makedirs(tile_dir)
         if kwargs.get('scheme') == 'wms':
             tile = os.path.join(tile_dir,'%03d.%s' % (int(y) % 1000, kwargs.get('format', 'png')))
         else:
             tile = os.path.join(tile_dir,'%s.%s' % (y, kwargs.get('format', 'png')))
-        f = open(tile, 'wb')
+        f = out.open(tile, 'wb')
         f.write(t[3])
         f.close()
         done = done + 1
@@ -362,11 +360,10 @@ def mbtiles_to_disk(mbtiles_file, directory_path, **kwargs):
             tile_row = %(y)d;''' % locals() )
         if kwargs.get('scheme') == 'xyz':
             y = flip_y(zoom_level,y)
-        grid_dir = os.path.join(base_path, str(zoom_level), str(tile_column))
-        if not os.path.isdir(grid_dir):
-            os.makedirs(grid_dir)
+        grid_dir = os.path.join(str(zoom_level), str(tile_column))
+        out.mkdirs(grid_dir)
         grid = os.path.join(grid_dir,'%s.grid.json' % (y))
-        f = open(grid, 'w')
+        f = out.open(grid, 'w')
         grid_json = json.loads(zlib.decompress(g[3]).decode('utf-8'))
         # join up with the grid 'data' which is in pieces when stored in mbtiles file
         grid_data = grid_data_cursor.fetchone()
